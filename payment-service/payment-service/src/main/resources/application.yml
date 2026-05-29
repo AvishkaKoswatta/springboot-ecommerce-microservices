@@ -1,0 +1,96 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: payment-service
+
+  datasource:
+    url: jdbc:mysql://mysql:3306/payment_service_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:hmak19991201***}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          initial-interval: 3000
+          max-attempts: 3
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://eureka:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET:3cfa76ef14937c1c0ea519f8fc057a80fcd04a7420f8e8bcd0a7567c272e007b}
+
+  rabbitmq:
+    payment-exchange: payment.exchange
+    order-exchange:   order.exchange
+
+    routing-keys:
+      payment-success:  payment.success
+      payment-failed:   payment.failed
+      refund-processed: refund.processed
+      refund-failed:    refund.failed
+
+    queues:
+      payment-success:    payment.success.queue
+      payment-failed:     payment.failed.queue
+      refund-processed:   refund.processed.queue
+      refund-failed:      refund.failed.queue
+      # Consume from order-service
+      payment-initiated:  payment.initiated.queue
+
+  mock-gateway:
+    # Simulates real gateway behaviour
+    success-rate: 0.85          # 85% of payments succeed (rest fail — realistic sandbox)
+    processing-delay-ms: 800    # simulate network latency
+    refund-delay-ms: 500
+    webhook-delay-ms: 1200      # webhook fires after this delay
+    webhook-secret: ${WEBHOOK_SECRET:mock-webhook-secret-key-32chars!!}
+
+  payment:
+    payment-expiry-minutes: 15  # payment session expires
+    refund-window-days: 30      # refunds allowed within 30 days
+
+services:
+  order-service-url: ${ORDER_SERVICE_URL:http://order-service}
+
+logging:
+  level:
+    com.microservice.paymentservice: DEBUG
+    org.springframework.security: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

@@ -1,0 +1,77 @@
+server:
+  port: 8081
+
+
+
+spring:
+  application:
+    name: user-service
+
+  datasource:
+    url: jdbc:mysql://mysql:3306/user_service_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:hmak19991201***}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET:3cfa76ef14937c1c0ea519f8fc057a80fcd04a7420f8e8bcd0a7567c272e007b}
+      expiration: 86400000        # 1 day in ms
+      token-prefix: "Bearer "
+      header-string: "Authorization"
+
+  frontend-url: ${FRONTEND_URL:http://frontend:5173}
+
+  email:
+    verification-expiry-hours: 24
+    password-reset-expiry-minutes: 30
+
+logging:
+  level:
+    com.microservice.userservice: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka:8761/eureka/
+
+    register-with-eureka: true
+    fetch-registry: true
+
+  instance:
+    prefer-ip-address: true
+

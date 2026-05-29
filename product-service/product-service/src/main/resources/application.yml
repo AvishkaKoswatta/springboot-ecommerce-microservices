@@ -1,0 +1,121 @@
+server:
+  port: 8082
+  servlet:
+    context-path: ""
+
+spring:
+  application:
+    name: product-service
+
+  datasource:
+    url: jdbc:mysql://mysql:3306/product_service_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:hmak19991201***}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: /
+
+    listener:
+      simple:
+        acknowledge-mode: auto   # Spring auto-acks on success, nacks on exception
+        retry:
+          enabled: true
+          initial-interval: 3000
+          max-attempts: 3
+          multiplier: 2
+
+# Eureka
+#eureka:
+#  client:
+#    service-url:
+#      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+#    fetch-registry: true
+#    register-with-eureka: true
+#  instance:
+#    prefer-ip-address: true
+#    lease-renewal-interval-in-seconds: 10
+#    lease-expiration-duration-in-seconds: 30
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka:8761/eureka/
+
+    register-with-eureka: true
+    fetch-registry: true
+
+  instance:
+    prefer-ip-address: true
+
+# JWT — MUST match user-service secret
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET:3cfa76ef14937c1c0ea519f8fc057a80fcd04a7420f8e8bcd0a7567c272e007b}
+
+  rabbitmq:
+    exchange: product.exchange
+    order-exchange: order.exchange
+    routing-keys:
+      product-created: product.created
+      product-updated: product.updated
+      product-deleted: product.deleted
+      inventory-updated: inventory.updated
+      low-stock-alert: inventory.low-stock
+      order-placed: order.placed
+      order-cancelled: order.cancelled
+    queues:
+      product-created: product.created.queue
+      product-updated: product.updated.queue
+      product-deleted: product.deleted.queue
+      inventory-updated: inventory.updated.queue
+      low-stock-alert: inventory.low-stock.queue
+      order-placed: order.placed.queue
+      order-cancelled: order.cancelled.queue
+      order-confirmed: order.confirmed.queue
+
+  inventory:
+    low-stock-threshold: 10
+
+services:
+  user-service-url: ${USER_SERVICE_URL:http://user-service}
+
+logging:
+  level:
+    com.microservice.productservice: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+file:
+  upload-dir: uploads
+
+aws:
+  region: us-east-1
+  s3:
+    bucket: ecom-app-images
+  credentials:
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}

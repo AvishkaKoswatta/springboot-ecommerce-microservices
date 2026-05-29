@@ -1,0 +1,176 @@
+version: "3.9"
+
+services:
+
+  # ─── Infrastructure ───────────────────────────────────────────
+
+  mysql:
+    image: mysql:8
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+    networks: [app-net]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # management UI → http://localhost:15672
+    networks: [app-net]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Service Registry ─────────────────────────────────────────
+
+  eureka:
+    build: ./eureka-server/eureka-server
+    container_name: eureka
+    ports:
+      - "8761:8761"
+    networks: [app-net]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health || exit 1"]  # ← fixed
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─── Backend Microservices ────────────────────────────────────
+
+  user-service:
+    build: ./user-service/user-service
+    container_name: user-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      EUREKA_URL: http://eureka:8761/eureka/
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks: [app-net]
+
+  product-service:
+    build: ./product-service/product-service
+    container_name: product-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      EUREKA_URL: http://eureka:8761/eureka/
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks: [app-net]
+
+
+  order-service:
+    build: ./order-service/order-service
+    container_name: order-service
+    ports:
+      - "8083:8083"
+    environment:
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      EUREKA_URL: http://eureka:8761/eureka/
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks: [app-net]
+
+  payment-service:
+    build: ./payment-service/payment-service
+    container_name: payment-service
+    ports:
+      - "8084:8084"
+    environment:
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      EUREKA_URL: http://eureka:8761/eureka/
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks: [app-net]
+
+  # ─── API Gateway ──────────────────────────────────────────────
+
+  api-gateway:
+    build: ./gatewayservice/gatewayservice
+    container_name: api-gateway
+    ports:
+      - "8079:8079"
+    environment:
+      EUREKA_URL: http://eureka:8761/eureka/
+    depends_on:
+      eureka:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+    networks: [app-net]
+
+
+  # ─── Frontend ─────────────────────────────────────────────────
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "5173:80"       # browser hits localhost:5173 → nginx:80
+    depends_on:
+      - api-gateway
+    networks: [app-net]
+
+# ─── Volumes & Network ──────────────────────────────────────────
+
+volumes:
+  mysqldata:
+
+
+networks:
+  app-net:
+    driver: bridge
